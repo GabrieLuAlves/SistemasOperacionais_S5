@@ -1,0 +1,30 @@
+Se tiver menos clientes do que caixas, ele entra
+Se todos os caixas estiverem ocupados, o cliente vai para a fila
+Quando um caixa for desocupado, o próximo cliente entra.
+
+nCaixas, número de caixas
+
+
+Cliente:
+  idCliente
+
+Thread cliente:
+  Cliente entra,
+  verifica se tem caixa disponível,
+
+  se tiver,
+    prosseguir para atendimento
+  se não,
+    espera na fila,
+    quando houver um caixa disponível,
+      prosseguir para atendimento (tempo definido)
+
+Thread atendimento:
+  verificar se há algum cliente na fila,
+  caso tenha,
+    chamar senha de atendimento de acordo com o número de caixas
+  caso não tenha,
+    domir
+
+Thread fila:
+  
