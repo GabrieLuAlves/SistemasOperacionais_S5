@@ -1,62 +1,80 @@
+from enum import Enum
 from queue import Queue
 from threading import Semaphore, Thread
 from time import sleep
 from typing import List
 
-from models import CashMachine, Client
+
+class CashMachineStatus(Enum):
+    WAITING_FOR_CLIENT = 0,
+    PROCESSING_REQUEST = 1
 
 
-class CashMachineAttendance(Thread):
-    def start(self, cash_machine: CashMachine) -> None:
-        self.cash_machine: CashMachine = cash_machine
-        self.client: Client = None
+class Operation:
+    def __init__(self) -> None:
+        self.operationSemaphore = Semaphore(1)
 
-        self.semaphore = Semaphore(1)
+    def run(self, time):
+        sleep(time)
+
+
+class CashMachine(Thread):
+    def start(self, id) -> None:
+        self.id = id
+        self.status = CashMachineStatus.WAITING_FOR_CLIENT
+
+        self.attendance = Semaphore(1)
 
         super().start()
 
     def run(self):
+        print(f"[{self.id}] started")
         while True:
-            # await for client
-            self.semaphore.acquire(True)
+            self.status = CashMachineStatus.WAITING_FOR_CLIENT
+            self.attendance.acquire(True)
 
-            self.cash_machine.account = self.client.account
-            self.cash_machine.deposit(100)
-            sleep(1)
+    def isAvailable(self):
+        return self.status == CashMachineStatus.WAITING_FOR_CLIENT
 
-            self.client = None
-            self.cash_machine.account = None
+
+class Client(Thread):
+    def start(self, name: str, ta: int, senha: str) -> None:
+        self.name = name
+        self.ta = ta
+        self.senha = senha
+        self.cash_machine = None
+
+        self.attendanceSemaphore = Semaphore(1)
+
+        super().start()
+
+    def run(self):
+        # await for cash machine
+        self.attendanceSemaphore.acquire(True)
+
+    def proceedToAttendance(self, cash_machine: CashMachine):
+        self.cash_machine = cash_machine
+        self.attendanceSemaphore.release()
+
+        self.cash_machine.attendance.release()
 
 
 class BankQueue(Thread):
-    def __init__(self, listCashMachines):
-        self.queue = Queue()
-        self.mutex = Semaphore(1)
-
-    def wait(self, mySem):
-        self.mutex.wait()
-        self.queue.add(mySem)
-        self.mutex.signal()
-        mySem.wait()
-
-    def signal(self):
-        self.mutex.wait()
-        sem = self.queue.remove()
-        self.mutex.signal()
-        sem.signal()
+    def start(self) -> None:
+        self.clientQueue = Queue()
+        super().start()
 
 
-def main():
-    cashMachineAttendances: List(CashMachineAttendance) = []
-    for i in range(10):
-        cashMachine = CashMachine()
-        cashMachineAttendances.append(CashMachineAttendance(cashMachine))
+def main(nCaixas):
+    cashMachines: List[CashMachine] = []
+    for i in range(nCaixas):
+        cashMachines.append(CashMachine())
 
-    for cashMachineAttendance in cashMachineAttendances:
-        cashMachineAttendance.start()
+    for index, cashMachine in enumerate(cashMachines):
+        cashMachine.start(f"Cash machine n.{index}")
 
-    BankQueue(cashMachineAttendances).start()
+    sleep(1)
 
 
 if __name__ == '__main__':
-    main()
+    main(3)
