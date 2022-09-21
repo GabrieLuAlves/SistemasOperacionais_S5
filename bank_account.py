@@ -1,80 +1,134 @@
+from datetime import datetime
 from enum import Enum
-from queue import Queue
-from threading import Semaphore, Thread
+from multiprocessing import Semaphore
+from threading import Thread
 from time import sleep
-from typing import List
+from typing import Any, Iterable, List, Mapping
+
+nCaixas = 5
+
+
+class Logger:
+    instance = None
+
+    def __init__(self) -> None:
+        self.semaphore = Semaphore(1)
+        self.begin = datetime.now()
+        Logger.instance = None
+
+    def getInstance():
+        if not Logger.instance:
+            Logger.instance = Logger()
+
+        return Logger.instance
+
+    def __call__(self, string: str) -> Any:
+        self.semaphore.acquire(1)
+
+        time = (datetime.now() - self.begin).total_seconds()
+        print(f"[{time}]", string)
+
+        self.semaphore.release()
+
+
+log = Logger.getInstance()
 
 
 class CashMachineStatus(Enum):
-    WAITING_FOR_CLIENT = 0,
-    PROCESSING_REQUEST = 1
+    AVAILABLE = 0,
+    OPERATING = 1
 
 
-class Operation:
-    def __init__(self) -> None:
-        self.operationSemaphore = Semaphore(1)
+class CashMachineOperation:
+    def __init__(self):
+        self.semaphore = Semaphore(0)
 
-    def run(self, time):
-        sleep(time)
+    def execute(self):
+        sleep(1)
+        self.semaphore.release()
 
 
 class CashMachine(Thread):
-    def start(self, id) -> None:
-        self.id = id
-        self.status = CashMachineStatus.WAITING_FOR_CLIENT
+    sessions = Semaphore(nCaixas)
 
-        self.attendance = Semaphore(1)
+    def __init__(self, name: str | None = ..., args: Iterable[Any] = ..., kwargs: Mapping[str, Any] | None = ...) -> None:
+        self.lock = Semaphore(0)
+        self.status = CashMachineStatus.AVAILABLE
+        self.operation: CashMachineOperation = None
+        super().__init__(None, None, name, args, kwargs)
 
+    def start(self) -> None:
         super().start()
 
-    def run(self):
-        print(f"[{self.id}] started")
+    def run(self) -> None:
+        log(f"[{self.name}] started")
         while True:
-            self.status = CashMachineStatus.WAITING_FOR_CLIENT
-            self.attendance.acquire(True)
-
-    def isAvailable(self):
-        return self.status == CashMachineStatus.WAITING_FOR_CLIENT
+            self.lock.acquire(True)
+            self.operation.execute()
 
 
 class Client(Thread):
-    def start(self, name: str, ta: int, senha: str) -> None:
-        self.name = name
-        self.ta = ta
-        self.senha = senha
-        self.cash_machine = None
+    def __init__(
+        self,
+        name: str | None = ...,
+        attendance_period: int = ...,
+        args: Iterable[Any] = ...,
+        kwargs: Mapping[str, Any] | None = ...
+    ) -> None:
+        super().__init__(None, None, name, args, kwargs)
 
-        self.attendanceSemaphore = Semaphore(1)
+        self.attendance_period = attendance_period
 
+    def start(self, cash_machines: List[CashMachine]) -> None:
+        self.cash_machines = cash_machines
         super().start()
 
-    def run(self):
-        # await for cash machine
-        self.attendanceSemaphore.acquire(True)
+    def run(self) -> None:
+        log(f"{self.name} joined the queue")
+        CashMachine.sessions.acquire(True)
 
-    def proceedToAttendance(self, cash_machine: CashMachine):
-        self.cash_machine = cash_machine
-        self.attendanceSemaphore.release()
+        # Client looks for cash machine
+        cash_machine: CashMachine = None
+        for cm in self.cash_machines:
+            if cm.status == CashMachineStatus.AVAILABLE:
+                cm.status = CashMachineStatus.OPERATING
+                cash_machine = cm
+                break
 
-        self.cash_machine.attendance.release()
+        # In the case there are no cash machines available
+        if not cash_machine:
+            raise Exception("Unexpected error happened on schedule")
+
+        # begin attendament
+        operation = CashMachineOperation()
+        for i in range(self.attendance_period):
+            cash_machine.operation = operation
+            cash_machine.lock.release()
+            operation.semaphore.acquire(True)
+
+        # finish
+        log(f"{self.name} leaves")
+        cm.status = CashMachineStatus.AVAILABLE
+        CashMachine.sessions.release()
 
 
-class BankQueue(Thread):
-    def start(self) -> None:
-        self.clientQueue = Queue()
-        super().start()
+def main():
+    nClients = nCaixas * 2 + 1
+    cash_machines: List[CashMachine] = []
+    clients: List[Client] = []
 
-
-def main(nCaixas):
-    cashMachines: List[CashMachine] = []
     for i in range(nCaixas):
-        cashMachines.append(CashMachine())
+        cash_machines.append(CashMachine(name=f"Cash machine #{i}"))
 
-    for index, cashMachine in enumerate(cashMachines):
-        cashMachine.start(f"Cash machine n.{index}")
+    for i in range(nClients):
+        clients.append(Client(name=f"Client {i}", attendance_period=2))
 
-    sleep(1)
+    for cash_machine in cash_machines:
+        cash_machine.start()
+
+    for i in range(nClients):
+        clients[i].start(cash_machines)
 
 
-if __name__ == '__main__':
-    main(3)
+if __name__ == "__main__":
+    main()
