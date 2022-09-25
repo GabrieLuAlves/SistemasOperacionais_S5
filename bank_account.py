@@ -7,6 +7,16 @@ from time import sleep
 from tracemalloc import start
 from typing import Any, Iterable, List, Mapping
 
+import pygame
+from pygame.locals import *
+from sys import exit
+
+from interface import *
+
+import random
+
+pygame.init()
+
 
 class Logger:
     instance = None
@@ -45,7 +55,9 @@ class CashMachine(Thread):
         self.lock = Semaphore(0)
         self.operation_lock = Semaphore(0)
         self.status = CashMachineStatus.AVAILABLE
+
         self.attendance_period = 0
+        self.progress = 0
 
     def start(self) -> None:
         super().start()
@@ -54,16 +66,20 @@ class CashMachine(Thread):
         log(f"[{self.name}] started")
         while True:
             self.lock.acquire(True)
+
+            self.progress = 0
+            elapsed_time = 0
             start = datetime.now()
 
-            prev_fib = 0
-            fib = 1
-            while(datetime.now() - start).total_seconds() <= self.attendance_period:
-                aux = fib
-                fib += prev_fib
-                prev_fib = aux
+            while elapsed_time <= self.attendance_period:
+                elapsed_time = (datetime.now() - start).total_seconds()
+                self.progress = elapsed_time / self.attendance_period * 100
 
             self.operation_lock.release()
+
+
+cash_machines: List[CashMachine] = []
+cash_machines_semaphore = Semaphore(1)
 
 
 class Client(Thread):
@@ -104,22 +120,25 @@ class Client(Thread):
         end = datetime.now()
 
         self.cash_machine.status = CashMachineStatus.AVAILABLE
+        self.cash_machine = None
 
         log(f"[{self.name}] attendament finished ({(end - start).total_seconds()})")
         sessions.release()
 
 
+clients: List[Client] = []
+
+window = pygame.display.set_mode((640, 480))
+pygame.display.set_caption("Trabalho SO")
+
+
 def main():
     global sessions
-    global cash_machines_semaphore
-    global cash_machines
 
-    nCaixas = 5
-    nClients = nCaixas + 1
+    nCaixas = 3
+    nClients = 8
 
     sessions = Semaphore(nCaixas)
-    cash_machines_semaphore = Semaphore(1)
-    cash_machines = []
 
     for i in range(nCaixas):
         cash_machines.append(CashMachine(cash_machine_id=f"Cash machine #{i}"))
@@ -128,7 +147,63 @@ def main():
         cash_machine.start()
 
     for i in range(nClients):
-        Client(client_name=f"Client {i}", attendance_period=4, code=i).start()
+        client = Client(
+            client_name=f"Client {i}", attendance_period=random.randint(3, 5), code=i)
+        client.start()
+        clients.append(client)
+
+    window_width = 640
+    window_height = 480
+
+    pygame.init()
+    pygame.display.set_caption("Projeto de Sistemas Operacionais")
+
+    window = pygame.display.set_mode((window_width, window_height))
+    window.set_colorkey((255, 255, 255))
+
+    margin_left = window_width * (1 - 0.8) / 2
+    top = 30
+    height = 30
+    width = window_width * 0.25
+    padding = 10
+
+    distance = height + padding
+
+    while True:
+        window.fill((50, 50, 50))
+
+        i = 0
+        for client in clients:
+            if client.cash_machine is not None:
+                cash_machine = client.cash_machine
+                if client.cash_machine.progress < 100:
+                    Label(
+                        surface=window,
+                        left=margin_left,
+                        top=top + distance * i,
+                        size=24,
+                        height=height,
+                        colour=(255, 255, 255),
+                        background=(50, 50, 50),
+                        text=f"{client.name}"
+                    ).draw()
+
+                    ProgressBar(
+                        window,
+                        margin_left + 100,
+                        top + distance * i,
+                        width,
+                        height
+                    ).draw(cash_machine.progress)
+
+                    i += 1
+
+        for event in pygame.event.get():
+            if event.type == locals.QUIT:
+                pygame.quit()
+                exit()
+
+        pygame.display.update()
 
 
 if __name__ == "__main__":
