@@ -1,6 +1,6 @@
 from threading import Thread
 from time import sleep
-from turtle import back
+from tkinter import ttk
 import pygame
 import pygame.locals as locals
 
@@ -32,13 +32,7 @@ class ProgressBar:
         else:
             colour = self.colour
 
-        r, g, b = colour
-
-        r /= 2
-        g /= 2
-        b /= 2
-
-        bar_colour = (r, g, b)
+        bar_colour = (colour)
 
         pygame.draw.rect(
             self.surface,
@@ -98,6 +92,7 @@ class Process(Thread):
     def __init__(self, increment_period):
         super().__init__(name="process")
         self.increment_value = 100 / (increment_period * 10)
+        self.progress_bar: ttk.Progressbar = None
         self.value = 0
 
     def run(self):
@@ -126,7 +121,7 @@ def main():
     window.set_colorkey((255, 255, 255))
 
     margin_left = window_width * (1 - 0.8) / 2
-    top = 30
+    top = 70
     height = 30
     width = window_width * 0.25
     padding = 10
@@ -276,8 +271,8 @@ def main():
         i = 0
         for label, progress_bar, process in client_gui:
             if process.value < 100:
-                label.top = top + (height + distance) * i
-                progress_bar.top = top + (height + distance) * i
+                label.top = top + distance * i
+                progress_bar.top = top + distance * i
                 i += 1
 
                 label.draw()
@@ -287,6 +282,8 @@ def main():
             if event.type == locals.QUIT:
                 pygame.quit()
                 exit()
+
+        sleep(0.2)
 
         pygame.display.update()
 
