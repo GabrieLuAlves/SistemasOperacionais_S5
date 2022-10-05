@@ -2,6 +2,7 @@ from datetime import datetime
 from enum import Enum
 from multiprocessing import Semaphore
 from threading import Thread
+from time import sleep
 from typing import Any, List
 
 from shared import Observer
@@ -44,9 +45,8 @@ class CashMachine(Thread):
     sessions = Semaphore(0)
 
     def __init__(self, id: int = ...) -> None:
-        super().__init__(name=f"Cash Machine {id}")
+        super().__init__(name=f"Caixa {id}")
         self.lock = Semaphore(0)
-        self.operation_lock = Semaphore(0)
 
         self.id = id
         self.available = True
@@ -78,8 +78,7 @@ class CashMachine(Thread):
                 elapsed_time = (datetime.now() - start).total_seconds()
                 self.progress = elapsed_time / self.attendance_period * 100
                 self.notifyAll()
-
-            self.operation_lock.release()
+                sleep(0.001)
 
     def attach(self, observer):
         self.observers.append(observer)
@@ -104,7 +103,7 @@ class Client(Thread):
         self.attendance_period = attendance_period
         self.code = code
 
-        self.status = "On queue"
+        self.status = "Na fila"
 
         self.cash_machine: CashMachine = None
         self.observers: List[Observer] = []
@@ -130,14 +129,17 @@ class Client(Thread):
 
         self.cash_machine.lock.release()
         log(f"{self.name} on attendament ({self.cash_machine.name})")
-        self.status = "On attendament"
+        self.status = "Em atendimento"
         self.notifyAll()
-        self.cash_machine.operation_lock.acquire(True)
+
+        while self.elapsed_time < self.attendance_period:
+            self.elapsed_time = (datetime.now() - start).total_seconds()
+            sleep(0.001)
 
         end = datetime.now()
 
         self.elapsed_time = (end - start).total_seconds()
-        self.status = "Attendament Finished"
+        self.status = "Atendido"
         self.notifyAll()
 
         log(f"[{self.name}] attendament finished ({self.elapsed_time})")
@@ -153,7 +155,7 @@ class Client(Thread):
 def main():
     global sessions
 
-    nCaixas = 1
+    nCaixas = 5
     nClients = 5
 
     sessions = Semaphore(nCaixas)
