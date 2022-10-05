@@ -96,8 +96,8 @@ class ClientStatusPanel(Frame, Observer):
         if not self.client.status == "Na fila":
             self.cash_machine_var.set(self.client.cash_machine.name)
 
-        if self.client.status == "Atendido":
-            self.attendament_time_var.set(str(self.client.elapsed_time))
+
+        self.attendament_time_var.set(str(self.client.elapsed_time))
 
 
 class AddClientPanel(Frame):
