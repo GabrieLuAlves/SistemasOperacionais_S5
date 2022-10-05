@@ -1,5 +1,6 @@
 from tkinter import *
 from tkinter.ttk import *
+from screens.components.components import ScrollableFrame
 
 from shared import Observer
 from simulation import Client, CashMachine
@@ -138,7 +139,8 @@ class AddClientPanel(Frame):
             code=self.new_client_code
         )
 
-        ClientStatusPanel(self.clients_panel, client).pack(fill=X)
+        ClientStatusPanel(self.clients_panel.scrollable_frame,
+                          client).pack(fill=X)
 
         client.start()
 
@@ -161,7 +163,7 @@ class MainFrame(Frame):
             )
             panel.pack(fill="x")
 
-        self.clients_panel = Frame(self.main_frame)
+        self.clients_panel = ScrollableFrame(self.main_frame)
 
         self.cash_machines_panel.pack(fill=X)
 
@@ -187,7 +189,7 @@ def main():
         panel = CashMachineStatusPanel(cash_machines_panel, cash_machine)
         panel.pack(fill="x")
 
-    clients_panel = Frame(main_frame)
+    clients_panel = ScrollableFrame(main_frame)
 
     cash_machines_panel.pack(fill=X)
 

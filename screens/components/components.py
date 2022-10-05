@@ -2,20 +2,24 @@ from tkinter import *
 
 
 class ScrollableFrame(Frame):
-    def __init__(self, master):
-        super().__init__(master)
-        self.pack()
+    def __init__(self, container, *args, **kwargs):
+        super().__init__(container, *args, **kwargs)
+        canvas = Canvas(self)
+        scrollbar = Scrollbar(
+            self, orient="vertical", command=canvas.yview)
+        self.scrollable_frame = Frame(canvas)
 
-        self.canvas = Canvas(self)
-        self.canvas.pack(side=LEFT, fill=BOTH)
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
 
-        self.scroll_bar = Scrollbar(
-            self, orient=VERTICAL, command=self.canvas.yview)
-        self.scroll_bar.pack(side=RIGHT, fill=Y)
-        self.canvas.config(yscrollcommand=self.scroll_bar.set)
+        canvas.create_window(
+            (0, 0), window=self.scrollable_frame, anchor="nw", width=500)
 
-        self.internal_frame = Frame(self.canvas)
-        self.canvas.create_window(
-            (0, 0), window=self.internal_frame, anchor='nw')
+        canvas.configure(yscrollcommand=scrollbar.set)
 
-        self.canvas.config(scrollregion=self.canvas.bbox("all"))
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
