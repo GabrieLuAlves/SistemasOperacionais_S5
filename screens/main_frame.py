@@ -8,7 +8,7 @@ from simulation import Client, CashMachine
 
 class CashMachineStatusPanel(Frame, Observer):
     def __init__(self, master, cash_machine):
-        super().__init__(master, height=50)
+        super().__init__(master, height=20)
 
         self.cash_machine = cash_machine
         self.cash_machine.attach(self)
@@ -102,7 +102,7 @@ class ClientStatusPanel(Frame, Observer):
 
 class AddClientPanel(Frame):
     def __init__(self, master, clients_panel):
-        super().__init__(master, height=40)
+        super().__init__(master, height=30)
 
         self.new_client_name = StringVar()
         self.new_client_code = 1
@@ -114,12 +114,10 @@ class AddClientPanel(Frame):
             self,
             state="readonly",
             textvariable=self.new_client_name,
-            font=("arial", 16)
         )
 
         self.entry_period = Entry(
             self,
-            font=("arial", 16)
         )
 
         self.button = Button(

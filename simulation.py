@@ -78,7 +78,6 @@ class CashMachine(Thread):
                 elapsed_time = (datetime.now() - start).total_seconds()
                 self.progress = elapsed_time / self.attendance_period * 100
                 self.notifyAll()
-                sleep(0.001)
 
     def attach(self, observer):
         self.observers.append(observer)
@@ -134,7 +133,7 @@ class Client(Thread):
 
         while self.elapsed_time < self.attendance_period:
             self.elapsed_time = (datetime.now() - start).total_seconds()
-            sleep(0.001)
+            sleep(0.00001)
 
         end = datetime.now()
 
